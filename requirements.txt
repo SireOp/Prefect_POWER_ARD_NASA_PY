@@ -1,0 +1,4 @@
+xarray
+fsspec
+pandas
+# zarr (optional, remove '#' to include)

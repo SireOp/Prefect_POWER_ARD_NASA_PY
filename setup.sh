@@ -58,7 +58,7 @@ echo "source $(pwd)/.venv/bin/activate"
 
 # 7. Final message – if sourced, the venv is active; if executed, remind user to activate
 if [[ "$-" == *i* ]] && [[ "$BASH_SOURCE" != "$0" ]]; then
-    echo "✅ Setup complete. Virtual environment is now activated in this shell."
+    echo "Setup complete. Virtual environment is now activated in this shell."
 else
-    echo "✅ Setup complete. (Activate the venv with 'source .venv/bin/activate' to start using it.)"
+    echo "Setup complete. (Activate the venv with 'source .venv/bin/activate' to start using it.)"
 fi
