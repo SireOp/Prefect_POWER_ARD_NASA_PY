@@ -4,7 +4,7 @@ set -e  # Exit on any error
 # 1. Create a Python virtual environment in .venv
 python3 -m venv .venv  || { echo "Failed to create virtual environment"; exit 1; }
 echo " Created Python virtual environment in $(pwd)/.venv"
-
+                              
 # 2. (Optional) Activate the environment in this script (if sourcing)
 # If the script is sourced, the following will activate .venv in the current shell.
 # If the script is executed normally, this has no lasting effect, so we also print instructions.
