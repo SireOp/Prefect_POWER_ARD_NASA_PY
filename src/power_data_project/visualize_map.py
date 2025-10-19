@@ -14,6 +14,37 @@ try:
 except Exception:
     _HAS_CARTOPY = False
 
+if _HAS_CARTOPY:
+    import cartopy.feature as cfeature
+
+def infer_extent(da: xr.DataArray):
+    """Return (min_lon, max_lon, min_lat, max_lat) from a DataArray."""
+    lats = da["lat"].values
+    lons = da["lon"].values
+    return float(lons.min()), float(lons.max()), float(lats.min()), float(lats.max())
+
+def add_base_layers(ax, extent=None, with_states=True):
+    """Coastlines, borders, states/provinces, and labeled gridlines."""
+    if not _HAS_CARTOPY:
+        return
+    if extent:
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.coastlines(linewidth=0.8)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.6)
+    if with_states:
+        # admin_1_states_provinces lines (Natural Earth)
+        states = cfeature.NaturalEarthFeature(
+            category="cultural",
+            name="admin_1_states_provinces_lines",
+            scale="50m",
+            facecolor="none",
+        )
+        ax.add_feature(states, edgecolor="gray", linewidth=0.4)
+    # gridlines with labels
+    gl = ax.gridlines(draw_labels=True, linestyle=":", alpha=0.6)
+    gl.right_labels = False
+    gl.top_labels = False
+
 
 def _load_dataset(path: str, var_name: str) -> xr.DataArray:
     """
