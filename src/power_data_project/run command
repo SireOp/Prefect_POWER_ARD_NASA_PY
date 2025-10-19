@@ -2,3 +2,7 @@ PYTHONPATH=src python -m power_data_project.visualize_map \
   --path ../data/output/power_long_wave_radiation.nc \
   --var ALLSKY_SFC_LW_DWN \
   --save ../data/output/radiation_map.png
+
+PYTHONPATH=src python -m power_data_project.visualize_map \
+  --path ../data/output/power_long_wave_radiation.nc \
+  --var ALLSKY_SFC_LW_DWN
