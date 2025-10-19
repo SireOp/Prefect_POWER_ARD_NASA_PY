@@ -14,7 +14,7 @@ LONGWAVE  = "ALLSKY_SFC_LW_DWN"  # W/m²
 OUTPUT_DIR = "data/output"
 
 def main():
-    print("🔗 Connecting…")
+    print("Connecting…")
     ds = open_power_dataset(URL)
 
     jobs = [
@@ -23,7 +23,7 @@ def main():
     ]
 
     for var, base in jobs:
-        print(f"\n🌍 Slicing '{var}' …")
+        print(f"\n Slicing '{var}' …")
         da, (nc_path, csv_path) = slice_and_save(
             ds,
             var=var,
@@ -34,7 +34,7 @@ def main():
             basename=base,
             load=False,
         )
-        print(f"✅ Saved: {nc_path} and {csv_path} | shape={da.shape}")
+        print(f"Saved: {nc_path} and {csv_path} | shape={da.shape}")
 
 if __name__ == "__main__":
     main()
