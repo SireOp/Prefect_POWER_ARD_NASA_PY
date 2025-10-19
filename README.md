@@ -8,7 +8,7 @@ bounding box (35°N–45°N, 85°W–75°W).
 
 The color bars on the right of each plot represent the measured radiation that in Watts per square meter (W/m²). ALLSKY_LW_DWN shows how much Longwave radiation energy(infrared heat form clouds and the atmosphere) reaches the surface, while ALLSKY_SW_DWN is the amount of Shortwave radiation hitting the surface(Sunlight or solar energy). 
 
-This data could be used to estimate solar power potential, or to compare satellite observations againt model predictions.
+This data could be used to estimate solar power potential, or to compare satellite observations against model predictions.
 
 For more information on Shortwave Radiation and how NASA computes it please visit:
 
