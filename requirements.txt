@@ -1,9 +1,14 @@
+# Core scientific/data packages
 xarray
-fsspec
 pandas
-zarr  # (optional, remove '#' to include)
-requests
-aiohttp
+fsspec
+scipy
 netCDF4
 h5netcdf
-scipy
+aiohttp
+requests
+zarr  # optional: remove '#' if using zarr datasets
+
+# Visualization
+matplotlib
+cartopy
