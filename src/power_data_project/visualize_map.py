@@ -154,42 +154,55 @@ def _print_available_vars(path: str) -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+    import matplotlib
+
+    # Detect if running in a headless environment (no display, e.g. Codespaces)
+    if not os.environ.get("DISPLAY"):
+        matplotlib.use("Agg")  # non-interactive backend
+
     parser = argparse.ArgumentParser(description="Plot radiation map from NetCDF or CSV.")
     parser.add_argument(
         "--path",
         required=False,
         default="../data/output/power_long_wave_radiation.nc",
-        help="Path to .nc or .csv (relative to src/)."
+        help="Path to .nc or .csv (relative to src/).",
     )
     parser.add_argument(
         "--var",
         required=False,
         default="ALLSKY_SFC_LW_DWN",
-        help="Variable/column name to plot."
+        help="Variable/column name to plot.",
     )
     parser.add_argument(
         "--no-mean",
         action="store_true",
-        help="Do NOT average over time (plot a single timestep)."
+        help="Do NOT average over time (plot a single timestep).",
     )
     parser.add_argument(
         "--save",
-        default=None,
-        help="Optional output image path (e.g., ../data/output/radiation_map.png)."
+        default="../data/output/auto_radiation_map.png",
+        help="Output image path (default: ../data/output/auto_radiation_map.png).",
     )
     parser.add_argument(
         "--list",
         action="store_true",
-        help="List variables/columns in the file and exit."
+        help="List variables/columns in the file and exit.",
     )
     args = parser.parse_args()
 
     if args.list:
         _print_available_vars(args.path)
     else:
+        print(f"\n  Loading: {args.path}")
+        print(f"Variable: {args.var}")
+        print(f"Output  : {args.save}\n")
+
         plot_radiation_map(
             data_path=args.path,
             var_name=args.var,
-            mean_over_time= not args.no_mean,
+            mean_over_time=not args.no_mean,
             save_path=args.save,
         )
+
+        print(f"Visualization saved at: {args.save}")
