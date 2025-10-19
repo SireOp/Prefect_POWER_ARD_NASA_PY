@@ -1,4 +1,6 @@
 # src/power_data_project/visualize_map.py
+from __future__ import annotations
+
 import argparse
 import os
 from typing import Optional
@@ -6,22 +8,85 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import xarray as xr
 
-
 # cartopy is great, but optional
 try:
     import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
     _HAS_CARTOPY = True
 except Exception:
     _HAS_CARTOPY = False
 
-if _HAS_CARTOPY:
-    import cartopy.feature as cfeature
+
+# --------------------------- loaders & helpers ---------------------------
+
+def _load_dataset(path: str, var_name: str) -> xr.DataArray:
+    """
+    Load data from NetCDF or CSV into a DataArray with dims (time?, lat, lon).
+    CSV must have columns: time, lat, lon, <var_name>
+    """
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext in (".nc", ".nc4", ".cdf"):
+        ds = xr.open_dataset(path)
+        if var_name not in ds:
+            available = ", ".join(ds.data_vars)
+            raise KeyError(f"Variable '{var_name}' not in dataset. Available: {available}")
+        da = ds[var_name]
+
+        # Normalize coord names if needed
+        rename_map = {}
+        for cand, std in (
+            ("latitude", "lat"),
+            ("Latitude", "lat"),
+            ("LATITUDE", "lat"),
+            ("longitude", "lon"),
+            ("Longitude", "lon"),
+            ("LONGITUDE", "lon"),
+        ):
+            if cand in da.coords and std not in da.coords:
+                rename_map[cand] = std
+        if rename_map:
+            da = da.rename(rename_map)
+        return da
+
+    elif ext == ".csv":
+        import pandas as pd
+        df = pd.read_csv(path)
+
+        cols_lower = {c.lower(): c for c in df.columns}
+        want = var_name.lower()
+        if want not in cols_lower:
+            guesses = [c for c in df.columns if c.lower() not in {"time", "lat", "lon"}]
+            raise KeyError(
+                f"Column '{var_name}' not found in CSV. "
+                f"Found value columns: {guesses}"
+            )
+        vcol = cols_lower[want]
+
+        for req in ("time", "lat", "lon"):
+            if req not in cols_lower:
+                raise KeyError(f"CSV is missing required column '{req}'.")
+
+        df["time"] = pd.to_datetime(df[cols_lower["time"]])
+        df = df.rename(columns={
+            cols_lower["lat"]: "lat",
+            cols_lower["lon"]: "lon",
+            vcol: var_name
+        })
+
+        ds = df.set_index(["time", "lat", "lon"]).to_xarray()
+        return ds[var_name]
+
+    else:
+        raise ValueError(f"Unsupported file type '{ext}'. Use .nc or .csv")
+
 
 def infer_extent(da: xr.DataArray):
     """Return (min_lon, max_lon, min_lat, max_lat) from a DataArray."""
     lats = da["lat"].values
     lons = da["lon"].values
     return float(lons.min()), float(lons.max()), float(lats.min()), float(lats.max())
+
 
 def add_base_layers(ax, extent=None, with_states=True):
     """Coastlines, borders, states/provinces, and labeled gridlines."""
@@ -32,7 +97,6 @@ def add_base_layers(ax, extent=None, with_states=True):
     ax.coastlines(linewidth=0.8)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.6)
     if with_states:
-        # admin_1_states_provinces lines (Natural Earth)
         states = cfeature.NaturalEarthFeature(
             category="cultural",
             name="admin_1_states_provinces_lines",
@@ -40,72 +104,12 @@ def add_base_layers(ax, extent=None, with_states=True):
             facecolor="none",
         )
         ax.add_feature(states, edgecolor="gray", linewidth=0.4)
-    # gridlines with labels
     gl = ax.gridlines(draw_labels=True, linestyle=":", alpha=0.6)
     gl.right_labels = False
     gl.top_labels = False
 
 
-def _load_dataset(path: str, var_name: str) -> xr.DataArray:
-    """
-    Load data from NetCDF or CSV into a DataArray with dims (time?, lat, lon).
-    CSV must have columns: time, lat, lon, <var_name>
-    """
-    ext = os.path.splitext(path)[1].lower()
-    if ext in (".nc", ".nc4", ".cdf"):
-        ds = xr.open_dataset(path)
-        if var_name not in ds:
-            # helpful hint if the user guessed the wrong case/name
-            available = ", ".join(ds.data_vars)
-            raise KeyError(f"Variable '{var_name}' not in dataset. Available: {available}")
-        da = ds[var_name]
-        # Ensure lat/lon are named consistently
-        rename_map = {}
-        for cand, std in (("latitude", "lat"), ("Longitude", "lon"), ("Latitude", "lat"),
-                          ("LONGITUDE", "lon"), ("LATITUDE", "lat")):
-            if cand in da.coords and std not in da.coords:
-                rename_map[cand] = std
-        if rename_map:
-            da = da.rename(rename_map)
-        return da
-
-    elif ext == ".csv":
-        import pandas as pd
-        df = pd.read_csv(path)
-        # Find the variable column (case-insensitive match if needed)
-        cols_lower = {c.lower(): c for c in df.columns}
-        want = var_name.lower()
-        if want not in cols_lower:
-            # show best guess list
-            guesses = [c for c in df.columns if c.lower() not in {"time", "lat", "lon"}]
-            raise KeyError(
-                f"Column '{var_name}' not found in CSV. "
-                f"Found value columns: {guesses}"
-            )
-        vcol = cols_lower[want]
-
-        # Basic validation
-        for req in ("time", "lat", "lon"):
-            if req not in cols_lower:
-                raise KeyError(f"CSV is missing required column '{req}'.")
-
-        # Build a 3D DataArray via xarray
-        df["time"] = pd.to_datetime(df[cols_lower["time"]])
-        df = df.rename(columns={
-            cols_lower["lat"]: "lat",
-            cols_lower["lon"]: "lon",
-            vcol: var_name
-        })
-        ds = (
-            df.set_index(["time", "lat", "lon"])
-              .to_xarray()
-        )
-        da = ds[var_name]
-        return da
-
-    else:
-        raise ValueError(f"Unsupported file type '{ext}'. Use .nc or .csv")
-
+# ------------------------------- plotting -------------------------------
 
 def plot_radiation_map(
     data_path: str,
@@ -125,51 +129,117 @@ def plot_radiation_map(
     if mean_over_time and "time" in da.dims:
         da = da.mean("time")
 
-    # Squeeze singletons to be safe
     da = da.squeeze()
 
-    title = f"{var_name} — Mean Surface Radiation" if "time" not in da.dims or mean_over_time \
+    title = (
+        f"{var_name} — Mean Surface Radiation"
+        if "time" not in da.dims or mean_over_time
         else f"{var_name} — First timestep"
-
-if _HAS_CARTOPY:
-    fig = plt.figure(figsize=(9, 6))
-    ax = plt.axes(projection=ccrs.PlateCarree())
-
-    # infer extent from data
-    try:
-        extent = infer_extent(da)
-    except Exception:
-        extent = None
-
-    mesh = da.plot(
-        ax=ax,
-        transform=ccrs.PlateCarree(),
-        cmap="viridis",
-        cbar_kwargs={"label": f"{var_name} (W/m²)"}
     )
 
-    add_base_layers(ax, extent)  # <-- new helper adds outlines + gridlines
-    ax.set_title(title)
-else:
+    if _HAS_CARTOPY:
+        fig = plt.figure(figsize=(9, 6))
+        ax = plt.axes(projection=ccrs.PlateCarree())
+
+        # infer extent from data
+        try:
+            extent = infer_extent(da)
+        except Exception:
+            extent = None
+
+        da.plot(
+            ax=ax,
+            transform=ccrs.PlateCarree(),
+            cmap="viridis",
+            cbar_kwargs={"label": f"{var_name} (W/m²)"},
+        )
+
+        add_base_layers(ax, extent)
+        ax.set_title(title)
+    else:
         # Fallback: regular axes (requires 2D lat/lon grids or 1D lat/lon coords)
         fig = plt.figure(figsize=(9, 6))
         ax = plt.gca()
-        # xarray .plot() handles 2D/1D lat/lon nicely even without cartopy
-        mesh = da.plot(
+        da.plot(
             ax=ax,
             cmap="viridis",
-            cbar_kwargs={"label": f"{var_name} (W/m²)"}
+            cbar_kwargs={"label": f"{var_name} (W/m²)"},
         )
         ax.set_title(title + " (no cartopy)")
 
-        plt.tight_layout()
+    plt.tight_layout()
 
-if save_path:
+    if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         print(f"Saved figure -> {save_path}")
 
-        plt.show()
+    plt.show()
+
+
+def plot_two_maps(
+    lw_path: str,
+    lw_var: str,
+    sw_path: str,
+    sw_var: str,
+    mean_over_time: bool = True,
+    save_path: Optional[str] = "../data/output/radiation_maps.png",
+):
+    """Render LW and SW side-by-side in one figure and save to PNG."""
+    da_lw = _load_dataset(lw_path, lw_var)
+    da_sw = _load_dataset(sw_path, sw_var)
+
+    if mean_over_time and "time" in da_lw.dims:
+        da_lw = da_lw.mean("time")
+    if mean_over_time and "time" in da_sw.dims:
+        da_sw = da_sw.mean("time")
+
+    if _HAS_CARTOPY:
+        fig, axes = plt.subplots(
+            ncols=2, figsize=(14, 6),
+            subplot_kw={"projection": ccrs.PlateCarree()}
+        )
+        # use a combined extent
+        try:
+            e1 = infer_extent(da_lw); e2 = infer_extent(da_sw)
+            extent = (min(e1[0], e2[0]), max(e1[1], e2[1]),
+                      min(e1[2], e2[2]), max(e1[3], e2[3]))
+        except Exception:
+            extent = None
+
+        m1 = da_lw.plot(
+            ax=axes[0],
+            transform=ccrs.PlateCarree(),
+            cmap="viridis",
+            cbar_kwargs={"label": f"{lw_var} (W/m²)"},
+        )
+        add_base_layers(axes[0], extent)
+        axes[0].set_title(f"{lw_var} — Mean Surface Radiation")
+
+        m2 = da_sw.plot(
+            ax=axes[1],
+            transform=ccrs.PlateCarree(),
+            cmap="viridis",
+            cbar_kwargs={"label": f"{sw_var} (W/m²)"},
+        )
+        add_base_layers(axes[1], extent)
+        axes[1].set_title(f"{sw_var} — Mean Surface Radiation")
+
+        plt.tight_layout()
+    else:
+        fig, axes = plt.subplots(ncols=2, figsize=(14, 6))
+        da_lw.plot(ax=axes[0], cmap="viridis", cbar_kwargs={"label": f"{lw_var} (W/m²)"})
+        axes[0].set_title(f"{lw_var} — Mean Surface Radiation (no cartopy)")
+        da_sw.plot(ax=axes[1], cmap="viridis", cbar_kwargs={"label": f"{sw_var} (W/m²)"})
+        axes[1].set_title(f"{sw_var} — Mean Surface Radiation (no cartopy)")
+        plt.tight_layout()
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"Saved duo map -> {save_path}")
+
+    plt.show()
 
 
 def _print_available_vars(path: str) -> None:
@@ -186,56 +256,67 @@ def _print_available_vars(path: str) -> None:
         print("Unknown file type; cannot list variables.")
 
 
+# ---------------------------------- CLI ----------------------------------
+
 if __name__ == "__main__":
-    import argparse
-    import matplotlib
-
-    # Detect if running in a headless environment (no display, e.g. Codespaces)
+    # Headless-safe backend
     if not os.environ.get("DISPLAY"):
-        matplotlib.use("Agg")  # non-interactive backend
+        import matplotlib
+        matplotlib.use("Agg")
 
-    parser = argparse.ArgumentParser(description="Plot radiation map from NetCDF or CSV.")
-    parser.add_argument(
-        "--path",
-        required=False,
-        default="../data/output/power_long_wave_radiation.nc",
-        help="Path to .nc or .csv (relative to src/).",
-    )
-    parser.add_argument(
-        "--var",
-        required=False,
-        default="ALLSKY_SFC_LW_DWN",
-        help="Variable/column name to plot.",
-    )
-    parser.add_argument(
-        "--no-mean",
-        action="store_true",
-        help="Do NOT average over time (plot a single timestep).",
-    )
-    parser.add_argument(
-        "--save",
-        default="../data/output/auto_radiation_map.png",
-        help="Output image path (default: ../data/output/auto_radiation_map.png).",
-    )
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List variables/columns in the file and exit.",
-    )
+    parser = argparse.ArgumentParser(description="Plot radiation map(s) from NetCDF or CSV.")
+
+    # single-plot options
+    parser.add_argument("--path", default="../data/output/power_long_wave_radiation.nc",
+                        help="Path to .nc or .csv for single plot (LW by default).")
+    parser.add_argument("--var", default="ALLSKY_SFC_LW_DWN",
+                        help="Variable/column name to plot for single plot.")
+    parser.add_argument("--no-mean", action="store_true",
+                        help="Do NOT average over time.")
+    parser.add_argument("--save", default="../data/output/auto_radiation_map.png",
+                        help="Output image path for single plot.")
+    parser.add_argument("--list", action="store_true",
+                        help="List variables/columns in the given --path and exit.")
+
+    # duo-plot options
+    parser.add_argument("--both", action="store_true",
+                        help="Render LW and SW side-by-side.")
+    parser.add_argument("--lw", default="../data/output/power_long_wave_radiation.nc",
+                        help="LW dataset path (used with --both).")
+    parser.add_argument("--lw-var", default="ALLSKY_SFC_LW_DWN",
+                        help="LW variable name (used with --both).")
+    parser.add_argument("--sw", default="../data/output/power_short_wave_radiation.nc",
+                        help="SW dataset path (used with --both).")
+    parser.add_argument("--sw-var", default="ALLSKY_SFC_SW_DWN",
+                        help="SW variable name (used with --both).")
+    parser.add_argument("--save-both", default="../data/output/radiation_maps.png",
+                        help="Output image path when using --both.")
+
     args = parser.parse_args()
 
     if args.list:
         _print_available_vars(args.path)
+    elif args.both:
+        print(f"\n  LW: {args.lw}  ({args.lw_var})")
+        print(f"  SW: {args.sw}  ({args.sw_var})")
+        print(f"  Out: {args.save_both}\n")
+        plot_two_maps(
+            lw_path=args.lw,
+            lw_var=args.lw_var,
+            sw_path=args.sw,
+            sw_var=args.sw_var,
+            mean_over_time=not args.no_mean,
+            save_path=args.save_both,
+        )
+        print(f" Duo visualization saved at: {args.save_both}")
     else:
-        print(f"\n  Loading: {args.path}")
-        print(f"Variable: {args.var}")
-        print(f"Output  : {args.save}\n")
-
+        print(f"\n Path: {args.path}")
+        print(f"  Var : {args.var}")
+        print(f"  Out : {args.save}\n")
         plot_radiation_map(
             data_path=args.path,
             var_name=args.var,
             mean_over_time=not args.no_mean,
             save_path=args.save,
         )
-
-        print(f"Visualization saved at: {args.save}")
+        print(f" Visualization saved at: {args.save}")
