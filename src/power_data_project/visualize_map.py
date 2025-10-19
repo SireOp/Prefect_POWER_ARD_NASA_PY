@@ -131,9 +131,9 @@ def plot_radiation_map(
     title = f"{var_name} — Mean Surface Radiation" if "time" not in da.dims or mean_over_time \
         else f"{var_name} — First timestep"
 
-    if _HAS_CARTOPY:
-        fig = plt.figure(figsize=(9, 6))
-        ax = plt.axes(projection=ccrs.PlateCarree())
+if _HAS_CARTOPY:
+    fig = plt.figure(figsize=(9, 6))
+    ax = plt.axes(projection=ccrs.PlateCarree())
 
     # infer extent from data
     try:
@@ -150,7 +150,7 @@ def plot_radiation_map(
 
     add_base_layers(ax, extent)  # <-- new helper adds outlines + gridlines
     ax.set_title(title)
-    else:
+else:
         # Fallback: regular axes (requires 2D lat/lon grids or 1D lat/lon coords)
         fig = plt.figure(figsize=(9, 6))
         ax = plt.gca()
@@ -162,14 +162,14 @@ def plot_radiation_map(
         )
         ax.set_title(title + " (no cartopy)")
 
-    plt.tight_layout()
+        plt.tight_layout()
 
-    if save_path:
+if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         print(f"Saved figure -> {save_path}")
 
-    plt.show()
+        plt.show()
 
 
 def _print_available_vars(path: str) -> None:
