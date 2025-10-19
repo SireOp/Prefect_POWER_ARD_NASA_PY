@@ -123,7 +123,7 @@ if __name__ == "__main__":
         var="ALLSKY_SFC_LW_DWN",
         lat=(35, 45),
         lon=(-85, -75),
-        time=("2019-12-31", "2020-12-31"),
+        time=("2024-10-19", "2025-10-19"),
         basename="example_region",
     )
     print(da)

@@ -2,10 +2,15 @@
 from power_data_project.connection import open_power_dataset, DEFAULT_URL
 from power_data_project.data_download import slice_and_save
 
-URL = DEFAULT_URL
-LAT_SLICE = (35.0, 45.0)
-LON_SLICE = (-85.0, -75.0)
-TIME_RANGE = ("2019-12-31", "2020-12-31")
+# -----------------------------------------------------------------------------
+# User-configurable parameters
+# -----------------------------------------------------------------------------
+URL = DEFAULT_URL  # can be replaced with another POWER Zarr dataset
+
+# Example bounding box & time window
+LAT_SLICE = (35.0, 45.0)     # latitude range (south, north)
+LON_SLICE = (-85.0, -75.0)   # longitude range (west, east)
+TIME_RANGE = ("2024-10-19", "2025-10-19")
 
 # POWER variable names
 SHORTWAVE = "ALLSKY_SFC_SW_DWN"  # W/m²

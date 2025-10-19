@@ -1,4 +1,9 @@
 xarray
 fsspec
 pandas
-# zarr (optional, remove '#' to include)
+zarr  # (optional, remove '#' to include)
+requests
+aiohttp
+netCDF4
+h5netcdf
+scipy
