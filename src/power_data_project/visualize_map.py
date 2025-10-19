@@ -132,8 +132,8 @@ def plot_radiation_map(
         else f"{var_name} — First timestep"
 
     if _HAS_CARTOPY:
-    fig = plt.figure(figsize=(9, 6))
-    ax = plt.axes(projection=ccrs.PlateCarree())
+        fig = plt.figure(figsize=(9, 6))
+        ax = plt.axes(projection=ccrs.PlateCarree())
 
     # infer extent from data
     try:
