@@ -132,22 +132,24 @@ def plot_radiation_map(
         else f"{var_name} — First timestep"
 
     if _HAS_CARTOPY:
-        fig = plt.figure(figsize=(9, 6))
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        mesh = da.plot(
-            ax=ax,
-            transform=ccrs.PlateCarree(),
-            cmap="viridis",
-            cbar_kwargs={"label": f"{var_name} (W/m²)"}
-        )
-        ax.coastlines()
-        try:
-            gl = ax.gridlines(draw_labels=True, linestyle=":")
-            gl.right_labels = False
-            gl.top_labels = False
-        except Exception:
-            pass
-        ax.set_title(title)
+    fig = plt.figure(figsize=(9, 6))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+
+    # infer extent from data
+    try:
+        extent = infer_extent(da)
+    except Exception:
+        extent = None
+
+    mesh = da.plot(
+        ax=ax,
+        transform=ccrs.PlateCarree(),
+        cmap="viridis",
+        cbar_kwargs={"label": f"{var_name} (W/m²)"}
+    )
+
+    add_base_layers(ax, extent)  # <-- new helper adds outlines + gridlines
+    ax.set_title(title)
     else:
         # Fallback: regular axes (requires 2D lat/lon grids or 1D lat/lon coords)
         fig = plt.figure(figsize=(9, 6))
