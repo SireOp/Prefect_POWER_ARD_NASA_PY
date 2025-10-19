@@ -189,6 +189,6 @@ if __name__ == "__main__":
         plot_radiation_map(
             data_path=args.path,
             var_name=args.var,
-            mean_over_time=not args.no-mean,
+            mean_over_time= not args.no_mean,
             save_path=args.save,
         )
